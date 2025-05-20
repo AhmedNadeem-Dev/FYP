@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\CustomRequestController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\InvitationController;
@@ -34,6 +35,9 @@ Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']
 // Public product browsing
 Route::get('/products/all', [ProductController::class, 'getAllProducts']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
+
+// Product recommendations
+Route::get('/recommendations', [RecommendationController::class, 'getRecommendedProducts']);
 
 /*
 |--------------------------------------------------------------------------

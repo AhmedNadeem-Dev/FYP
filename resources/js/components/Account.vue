@@ -6,7 +6,6 @@
       <router-link :to="overviewRoute" exact-active-class="active">Overview</router-link>
       <router-link to="/account" exact-active-class="active">Account</router-link>
       <router-link to="/password-change" exact-active-class="active">Change Password</router-link>
-      <router-link to="/email-change" exact-active-class="active">Change Email</router-link>
     </aside>
 
     <section class="dashboard-content">

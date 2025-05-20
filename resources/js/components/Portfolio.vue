@@ -480,14 +480,14 @@ export default {
 }
 
 .save-btn {
-  background-color: #6c63ff;
-  color: white;
+  background-color: #D4BEE4;
+  color: #3B1E54;
   border: none;
 }
 
 .delete-btn {
-  background-color: #e53935;
-  color: white;
+  background-color: #D4BEE4;
+  color: #3B1E54;
   border: none;
 }
 

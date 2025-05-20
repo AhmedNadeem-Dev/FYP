@@ -22,6 +22,44 @@
       </div>
     </div>
     
+    <!-- New Arrivals Banner -->
+    <div class="new-arrivals-banner" v-if="newArrivals.length > 0">
+      <div class="banner-header">
+        <div class="banner-title">
+          <span class="new-tag">NEW</span>
+          <h2>Latest Arrivals</h2>
+        </div>
+        <div class="banner-nav">
+          <button class="nav-btn" @click="scrollArrivals('left')">
+            <span class="arrow">←</span>
+          </button>
+          <button class="nav-btn" @click="scrollArrivals('right')">
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="arrivals-scroll" ref="arrivalsScroll">
+        <div 
+          v-for="product in newArrivals" 
+          :key="`new-${product.id}`" 
+          class="arrival-card"
+          @click="viewProductDetails(product)"
+        >
+          <div class="arrival-img">
+            <img 
+              :src="product.images && product.images.length ? product.images[0] : 'default-image.jpg'" 
+              :alt="product.name"
+            />
+          </div>
+          <div class="arrival-info">
+            <h3>{{ product.name }}</h3>
+            <p class="arrival-price">{{ product.price }} PKR</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- Active Filters (only shown when filters are active) -->
     <div v-if="hasActiveFilters" class="active-filters">
       <span class="filters-label">Active filters:</span>
@@ -62,7 +100,7 @@
           <div class="image-container">
             <img 
               :src="product.images.length ? product.images[0] : 'default-image.jpg'" 
-              alt="Product Image" 
+              alt="Product Image"
               class="product-image"
             />
             <div class="card-actions">
@@ -145,6 +183,7 @@ export default {
     return {
       products: [],
       filteredProducts: [],
+      newArrivals: [],
       loading: false,
       error: null,
       wishlistItems: [],
@@ -174,6 +213,10 @@ export default {
       const startIndex = (this.currentPage - 1) * this.productsPerPage;
       const endIndex = startIndex + this.productsPerPage;
       return this.filteredProducts.slice(startIndex, endIndex);
+    },
+    // Base URL for the API - adjust this if your frontend and backend are on different domains
+    apiBaseUrl() {
+      return 'http://127.0.0.1:8000';
     }
   },
   methods: {
@@ -200,7 +243,7 @@ export default {
       }
       
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/cart/add/${product.id}`, {
+        const response = await fetch(`${this.apiBaseUrl}/api/cart/add/${product.id}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -233,13 +276,23 @@ export default {
       this.loading = true;
       this.error = null;
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/products/all');
+        const response = await fetch(`${this.apiBaseUrl}/api/products/all`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        
+        // Debug: Log the first product's image URLs to check format
+        if (data.length > 0) {
+          console.log('First product data:', data[0]);
+          console.log('Image URLs:', data[0].images);
+        }
+        
         this.products = data;
         this.filteredProducts = [...data];
+        
+        // Extract the newest products for the banner
+        this.extractNewArrivals();
         
         this.extractCategories();
         
@@ -248,6 +301,31 @@ export default {
         console.error(err);
       } finally {
         this.loading = false;
+      }
+    },
+    
+    // Extract newest products for the banner
+    extractNewArrivals() {
+      // Sort products by creation date (newest first)
+      const sortedProducts = [...this.products].sort((a, b) => {
+        return new Date(b.created_at || Date.now()) - new Date(a.created_at || Date.now());
+      });
+      
+      // Get the 10 newest products for the banner
+      this.newArrivals = sortedProducts.slice(0, 10);
+    },
+    
+    // Handle horizontal scrolling of the arrivals banner
+    scrollArrivals(direction) {
+      if (!this.$refs.arrivalsScroll) return;
+      
+      const scrollContainer = this.$refs.arrivalsScroll;
+      const scrollAmount = scrollContainer.clientWidth * 0.8; // Scroll 80% of visible width
+      
+      if (direction === 'left') {
+        scrollContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        scrollContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
       }
     },
     
@@ -319,7 +397,7 @@ export default {
       if (!token) return;
       
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/cart', {
+        const response = await fetch(`${this.apiBaseUrl}/api/cart`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -340,7 +418,7 @@ export default {
       if (!token) return;
       
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/wishlist', {
+        const response = await fetch(`${this.apiBaseUrl}/api/wishlist`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -371,7 +449,7 @@ export default {
       try {
         if (this.isInWishlist(product.id)) {
           // Remove from wishlist
-          const response = await fetch(`http://127.0.0.1:8000/api/wishlist/remove/${product.id}`, {
+          const response = await fetch(`${this.apiBaseUrl}/api/wishlist/remove/${product.id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -383,7 +461,7 @@ export default {
           }
         } else {
           // Add to wishlist
-          const response = await fetch(`http://127.0.0.1:8000/api/wishlist/add/${product.id}`, {
+          const response = await fetch(`${this.apiBaseUrl}/api/wishlist/add/${product.id}`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -842,6 +920,154 @@ export default {
 @media (max-width: 480px) {
   .products-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* New Arrivals Banner */
+.new-arrivals-banner {
+  margin: 1rem 0 1.5rem;
+  background: linear-gradient(135deg, #3b1e54 0%, #5e3285 100%);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  color: white;
+}
+
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+}
+
+.banner-title {
+  display: flex;
+  align-items: center;
+}
+
+.banner-title h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.new-tag {
+  display: inline-block;
+  background-color: #ff6b6b;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  margin-right: 0.5rem;
+  letter-spacing: 0.05rem;
+}
+
+.banner-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-btn {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.arrow {
+  color: white;
+  font-size: 1rem;
+}
+
+.arrivals-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.5rem 0.25rem;
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none; /* For IE and Edge */
+  scroll-behavior: smooth;
+}
+
+.arrivals-scroll::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Opera */
+}
+
+.arrival-card {
+  flex: 0 0 auto;
+  width: 160px;
+  background-color: white;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.arrival-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.arrival-img {
+  height: 120px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.arrival-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.arrival-info {
+  padding: 0.75rem;
+  color: #333;
+}
+
+.arrival-info h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arrival-price {
+  margin: 0;
+  font-weight: 600;
+  color: #3b1e54;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .arrival-card {
+    width: 140px;
+  }
+  
+  .arrival-img {
+    height: 100px;
+  }
+  
+  .arrival-info h3 {
+    font-size: 0.8rem;
+  }
+  
+  .arrival-price {
+    font-size: 0.75rem;
   }
 }
 </style>
