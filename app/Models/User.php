@@ -70,4 +70,92 @@ class User extends Authenticatable
     {
         return $this->id != $userId;
     }
+
+    /**
+     * Get custom requests created by this user
+     */
+    public function customRequests()
+    {
+        return $this->hasMany(CustomRequest::class);
+    }
+
+    /**
+     * Get custom requests accepted by this artist
+     */
+    public function acceptedRequests()
+    {
+        return $this->hasMany(CustomRequest::class, 'artist_id');
+    }
+
+    /**
+     * Get orders placed by this user
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Get cart items for this user
+     */
+    public function cartItems()
+    {
+        return $this->hasMany(Cart::class);
+    }
+
+    /**
+     * Get wishlist items for this user
+     */
+    public function wishlistItems()
+    {
+        return $this->hasMany(Wishlist::class);
+    }
+
+    /**
+     * Scope for filtering users by role
+     */
+    public function scopeByRole($query, $role)
+    {
+        return $query->where('role', $role);
+    }
+
+    /**
+     * Scope for getting artists
+     */
+    public function scopeArtists($query)
+    {
+        return $query->where('role', 'artist');
+    }
+
+    /**
+     * Scope for getting scrap sellers
+     */
+    public function scopeScrapSellers($query)
+    {
+        return $query->where('role', 'scrapSeller');
+    }
+
+    /**
+     * Check if user is an artist
+     */
+    public function isArtist()
+    {
+        return $this->role === 'artist';
+    }
+
+    /**
+     * Check if user is a scrap seller
+     */
+    public function isScrapSeller()
+    {
+        return $this->role === 'scrapSeller';
+    }
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
 }

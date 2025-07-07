@@ -87,6 +87,8 @@
           type="date"
           v-model="form.deadline"
           :class="{ 'input-error': clientErrors.deadline }"
+          :min="minDate"
+          :max="maxDate"
         />
         <span v-if="clientErrors.deadline" class="inline-error">
           {{ clientErrors.deadline }}
@@ -103,6 +105,9 @@
           v-model="form.budget"
           :class="{ 'input-error': clientErrors.budget }"
           placeholder="e.g. 500"
+          min="0"
+          max="999999.99"
+          step="0.01"
         />
         <span v-if="clientErrors.budget" class="inline-error">
           {{ clientErrors.budget }}
@@ -134,6 +139,20 @@ export default {
       showSuccessAlert: false,
     };
   },
+  computed: {
+    minDate() {
+      // Tomorrow's date as minimum
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split('T')[0];
+    },
+    maxDate() {
+      // 2 years from now as maximum
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() + 2);
+      return maxDate.toISOString().split('T')[0];
+    }
+  },
   methods: {
     filterNonAlphabetic(field) {
       // Replace any non-alphabetic characters (except spaces, commas, and hyphens)
@@ -164,12 +183,29 @@ export default {
       
       if (!this.form.deadline) {
         this.clientErrors.deadline = 'Deadline is required.';
+      } else {
+        // Validate date format and ensure it's a future date
+        const deadlineDate = new Date(this.form.deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day
+        
+        if (isNaN(deadlineDate.getTime())) {
+          this.clientErrors.deadline = 'Please enter a valid date.';
+        } else if (deadlineDate < today) {
+          this.clientErrors.deadline = 'Deadline must be a future date.';
+        } else if (this.form.deadline.length !== 10) {
+          this.clientErrors.deadline = 'Please enter date in YYYY-MM-DD format.';
+        }
       }
       
       if (this.form.budget === '') {
         this.clientErrors.budget = 'Budget is required.';
       } else if (isNaN(this.form.budget) || /[a-zA-Z]/.test(this.form.budget)) {
         this.clientErrors.budget = 'Budget must be a numeric value.';
+      } else if (parseFloat(this.form.budget) < 0) {
+        this.clientErrors.budget = 'Budget must be a positive value.';
+      } else if (parseFloat(this.form.budget) > 999999.99) {
+        this.clientErrors.budget = 'Budget cannot exceed $999,999.99.';
       }
     },
     async createProject() {

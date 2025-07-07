@@ -297,7 +297,7 @@ export default {
     async fetchProductDetails() {
       const productId = this.$route.params.id; // Get the product ID from the route params
       try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/products/${productId}`);
+        const response = await axios.get(`http://127.0.0.1:8000/api/v1/products/${productId}`);
         this.product = response.data; // Store product details
         this.mainImage = this.product.images.length
           ? this.product.images[0]

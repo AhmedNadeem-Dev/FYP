@@ -179,7 +179,7 @@ fetchUserDetails() {
   }
   
   try {
-    console.log('Attempting to fetch orders with token', token.substring(0, 10) + '...');
+            // Fetch orders with authentication token
     
     const response = await fetch('http://127.0.0.1:8000/api/orders/seller', {
       headers: {
@@ -205,7 +205,7 @@ fetchUserDetails() {
     }
     
     const data = await response.json();
-    console.log('Orders data received:', data);
+              // Orders data received successfully
     this.orders = data;
           
           if (this.highlightedOrderId) {

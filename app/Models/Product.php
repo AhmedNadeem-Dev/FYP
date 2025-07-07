@@ -48,9 +48,55 @@ class Product extends Model
     {
         return $this->hasMany(OrderItem::class, 'product_id', 'product_id');
     }
-// Accessor to get category name easily
+    // Accessor to get category name easily
     public function getCategoryNameAttribute()
     {
         return $this->category ? $this->category->name : null;
+    }
+
+    /**
+     * Scope for filtering products by category
+     */
+    public function scopeByCategory($query, $categoryId)
+    {
+        return $query->where('category_id', $categoryId);
+    }
+
+    /**
+     * Scope for filtering products by user
+     */
+    public function scopeByUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope for filtering products by price range
+     */
+    public function scopePriceRange($query, $minPrice, $maxPrice = null)
+    {
+        $query->where('price', '>=', $minPrice);
+        
+        if ($maxPrice) {
+            $query->where('price', '<=', $maxPrice);
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Scope for getting products with images
+     */
+    public function scopeWithImages($query)
+    {
+        return $query->with('images');
+    }
+
+    /**
+     * Scope for getting recently created products
+     */
+    public function scopeRecent($query, $days = 30)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
     }
 }

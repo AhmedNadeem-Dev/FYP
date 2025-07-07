@@ -50,7 +50,7 @@ class CartController extends Controller
         }
 
         try {
-            $cartItems = Cart::with('product')
+            $cartItems = Cart::with(['product.images', 'product.category'])
                 ->where('user_id', auth()->id())
                 ->get()
                 ->filter(function ($item) {
@@ -60,25 +60,16 @@ class CartController extends Controller
                     $product = $item->product;
 
                     return [
-                        'id' => $product->product_id, // Use product_id since that's the primary key
-                        'product_id' => $product->product_id, // The actual primary key
-                        'cart_id' => $item->id, // Add cart item ID if needed
+                        'id' => $product->product_id,
+                        'product_id' => $product->product_id,
+                        'cart_id' => $item->id,
                         'name' => $product->name,
                         'description' => $product->description ?? '',
                         'price' => (float) $product->price,
                         'quantity' => (int) $item->quantity,
                         'subtotal' => (float) ($product->price * $item->quantity),
                         'images' => $product->images->map(function ($image) {
-                            $url = url('images/' . $image->image_path);
-                            
-                            // Log image path for debugging
-                            Log::info('getAllProducts image path:', [
-                                'filename' => $image->image_path,
-                                'full_url' => $url,
-                                'file_exists' => file_exists(public_path('images/' . $image->image_path))
-                            ]);
-                            
-                            return $url;
+                            return url('images/' . $image->image_path);
                         }),
                         'added_at' => $item->created_at
                     ];

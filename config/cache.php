@@ -92,6 +92,25 @@ return [
             'driver' => 'octane',
         ],
 
+        // Custom cache stores for different data types
+        'products' => [
+            'driver' => 'redis',
+            'connection' => 'cache',
+            'prefix' => 'products',
+        ],
+
+        'sessions' => [
+            'driver' => 'redis',
+            'connection' => 'cache',
+            'prefix' => 'sessions',
+        ],
+
+        'api_responses' => [
+            'driver' => 'redis',
+            'connection' => 'cache',
+            'prefix' => 'api',
+        ],
+
     ],
 
     /*

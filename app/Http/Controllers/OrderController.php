@@ -111,8 +111,17 @@ class OrderController extends Controller
     // Create a new order from the user's cart
     public function checkout(Request $request)
     {
+        // Add CORS headers
+        $response = response()->json();
+        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $response->headers->set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+        
         if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthorized (please log in).'], 401);
+            return response()->json(['error' => 'Unauthorized (please log in).'], 401)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
         }
 
         // Validate checkout data
@@ -124,7 +133,10 @@ class OrderController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors()], 422)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
         }
 
         try {
@@ -137,7 +149,10 @@ class OrderController extends Controller
                 ->get();
                 
             if ($cartItems->isEmpty()) {
-                return response()->json(['error' => 'Your cart is empty'], 400);
+                return response()->json(['error' => 'Your cart is empty'], 400)
+                    ->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
             }
             
             // Calculate total amount
@@ -177,13 +192,19 @@ class OrderController extends Controller
                 'message' => 'Order placed successfully',
                 'order_id' => $order->order_id,
                 'status' => $order->status
-            ], 201);
+            ], 201)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
             
         } catch (\Exception $e) {
             // Rollback transaction on error
             DB::rollBack();
             Log::error('Error creating order: ' . $e->getMessage());
-            return response()->json(['error' => 'Server error: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Server error: ' . $e->getMessage()], 500)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
         }
     }
     
@@ -191,12 +212,12 @@ class OrderController extends Controller
     
 public function getSellerOrders()
 {
-    $sellerId = auth()->id();
-    
-    if (!$sellerId) {
+    if (!auth()->check()) {
         return response()->json(['error' => 'Unauthorized (please log in).'], 401);
     }
-    
+
+    $sellerId = auth()->id();
+
     try {
         $orders = Order::whereHas('orderItems.product', function($query) use ($sellerId) {
                 $query->where('user_id', $sellerId);
@@ -212,18 +233,9 @@ public function getSellerOrders()
             ->map(function ($order) {
                 // Filter only the seller's items and transform data
                 $sellerItems = $order->orderItems->map(function ($item) {
-                    // Updated image fetching to match ProductController
                     $imagePath = null;
                     if ($item->product->images->first()) {
-                        $filename = $item->product->images->first()->image_path;
-                        $imagePath = url('images/' . $filename);
-                        
-                        // Log image path for debugging
-                        Log::info('Seller orders image path:', [
-                            'filename' => $filename,
-                            'full_url' => $imagePath,
-                            'file_exists' => file_exists(public_path('images/' . $filename))
-                        ]);
+                        $imagePath = url('images/' . $item->product->images->first()->image_path);
                     }
                     
                     return [
@@ -243,6 +255,7 @@ public function getSellerOrders()
                 });
                 
                 return [
+                    'id' => $order->order_id,
                     'order_id' => $order->order_id,
                     'customer_name' => $order->user->name,
                     'total_amount' => $totalAmount,
@@ -258,7 +271,7 @@ public function getSellerOrders()
         return response()->json($orders);
     } catch (\Exception $e) {
         Log::error('Error fetching seller orders: ' . $e->getMessage());
-        return response()->json(['error' => 'Server error: ' . $e->getMessage()], 500);
+        return response()->json(['error' => 'Server error'], 500);
     }
 }
 
@@ -270,11 +283,12 @@ public function getUserOrders()
 
     try {
         $orders = Order::where('user_id', auth()->id())
-            ->with(['orderItems.product.images'])
+            ->with(['orderItems.product'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($order) {
                 return [
+                    'id' => $order->order_id,
                     'order_id' => $order->order_id,
                     'total_amount' => $order->total_amount,
                     'status' => $order->status,
@@ -283,27 +297,18 @@ public function getUserOrders()
                     'payment_method' => $order->payment_method,
                     'created_at' => $order->created_at,
                     'items' => $order->orderItems->map(function ($item) {
-                        // Updated image fetching to match ProductController
-                        $imagePath = null;
-                        if ($item->product->images->first()) {
-                            $filename = $item->product->images->first()->image_path;
-                            $imagePath = url('images/' . $filename);
-                            
-                            // Log image path for debugging
-                            Log::info('User orders image path:', [
-                                'filename' => $filename,
-                                'full_url' => $imagePath,
-                                'file_exists' => file_exists(public_path('images/' . $filename))
-                            ]);
-                        }
-                        
                         return [
                             'id' => $item->id,
                             'product_id' => $item->product_id,
                             'name' => $item->product->name,
                             'price' => $item->price,
                             'quantity' => $item->quantity,
-                            'image_path' => $imagePath
+                            'image_path' => '/images/main.jpg', // Default image for now
+                            'product' => [
+                                'id' => $item->product->id,
+                                'name' => $item->product->name,
+                                'images' => ['/images/main.jpg'] // Default image
+                            ]
                         ];
                     })
                 ];
@@ -326,7 +331,7 @@ public function getUserOrders()
         try {
             $order = Order::where('order_id', $orderId)
                 ->where('user_id', auth()->id())
-                ->with(['orderItems.product.images'])
+                ->with(['orderItems.product'])
                 ->first();
                 
             if (!$order) {
@@ -335,6 +340,7 @@ public function getUserOrders()
             
             return response()->json([
                 'order' => [
+                    'id' => $order->order_id,
                     'order_id' => $order->order_id,
                     'total_amount' => $order->total_amount,
                     'status' => $order->status,
@@ -344,27 +350,19 @@ public function getUserOrders()
                     'notes' => $order->notes,
                     'created_at' => $order->created_at,
                     'items' => $order->orderItems->map(function ($item) {
-                        // Updated image fetching to match ProductController
-                        $imagePath = null;
-                        if ($item->product->images->first()) {
-                            $filename = $item->product->images->first()->image_path;
-                            $imagePath = url('images/' . $filename);
-                            
-                            // Log image path for debugging
-                            Log::info('Order details image path:', [
-                                'filename' => $filename,
-                                'full_url' => $imagePath,
-                                'file_exists' => file_exists(public_path('images/' . $filename))
-                            ]);
-                        }
-                        
                         return [
+                            'id' => $item->id,
                             'product_id' => $item->product_id,
                             'name' => $item->product->name,
                             'price' => $item->price,
                             'quantity' => $item->quantity,
                             'subtotal' => $item->price * $item->quantity,
-                            'image' => $imagePath
+                            'image' => '/images/main.jpg',
+                            'product' => [
+                                'id' => $item->product->id,
+                                'name' => $item->product->name,
+                                'images' => ['/images/main.jpg']
+                            ]
                         ];
                     })
                 ]

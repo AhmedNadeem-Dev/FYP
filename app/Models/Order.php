@@ -9,7 +9,7 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'order_id'; // Keep this consistent
+    protected $primaryKey = 'order_id'; // Use order_id as primary key
     
     protected $fillable = [
         'user_id',
@@ -37,7 +37,7 @@ class Order extends Model
             Product::class,
             OrderItem::class,
             'order_id', // Foreign key on OrderItem table
-            'product_id', // Foreign key on Product table
+            'id', // Foreign key on Product table
             'order_id', // Local key on Order table
             'product_id' // Local key on OrderItem table
         );

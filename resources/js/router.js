@@ -71,14 +71,7 @@ const routes = [  {
     requiresAuth: false // This page is publicly accessible
   }
 },
- {
-    path: '/orders-received',
-    name: 'OrdersReceived',
-    component: OrdersReceived,
-    meta: { 
-      requiresAuth: true  // If you're using navigation guards for authentication
-    }
-  },
+
 {
   path: '/cart',
   name: 'cart',
@@ -97,9 +90,6 @@ const routes = [  {
   component: About,
 },
 {
-  path: '/:pathMatch(.*)*',
-  redirect: '/home', 
-}, {
   path: '/scrap-items',   // Route for browsing all scrap products
   name: 'browse-scrap',
   component: BrowseScrap,
@@ -114,7 +104,6 @@ const routes = [  {
   { path: '/artist-dashboard', name: 'ArtistDashboard', component: ArtistDashboard },
   { path: '/scrap-seller-dashboard', name: 'ScrapSellerDashboard', component: ScrapSellerDashboard },
   { path: '/custom-request', component: CustomRequest },
-  { path: '/manage-products', component: ManageProducts, name: 'ManageProducts' },
   { path: '/admin-feedback', component: AdminFeedback },
   { path: '/portfolio', component: Portfolio },
   {
@@ -158,11 +147,11 @@ const routes = [  {
     meta: { requiresAuth: true }
   },
   {
-  path: '/recommendations',
-  name: 'recommendations',
-  component: Recommendations.vue,
-  meta: { requiresAuth: true }
-},
+    path: '/recommendations',
+    name: 'recommendations',
+    component: BrowseScrap,
+    meta: { requiresAuth: true }
+  },
   {
     path: '/order-history',
     name: 'order-history',
@@ -231,6 +220,69 @@ const routes = [  {
 const router = createRouter({
   history: createWebHistory(),
   routes
+});
+
+// Route guards for authentication
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = localStorage.getItem('access_token');
+  const userSession = localStorage.getItem('userSession');
+  
+  // Check if route requires authentication
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    // Redirect to login if not authenticated
+    next('/login');
+    return;
+  }
+  
+  // Check if route requires specific role
+  if (to.meta.requiresSeller && userSession) {
+    try {
+      const user = JSON.parse(userSession);
+      if (user.role !== 'scrapSeller') {
+        next('/'); // Redirect to home if not a seller
+        return;
+      }
+    } catch (e) {
+      next('/login');
+      return;
+    }
+  }
+  
+  // Check if route requires artist role
+  if (to.meta.requiresArtist && userSession) {
+    try {
+      const user = JSON.parse(userSession);
+      if (user.role !== 'artist') {
+        next('/'); // Redirect to home if not an artist
+        return;
+      }
+    } catch (e) {
+      next('/login');
+      return;
+    }
+  }
+  
+  // Check if route requires admin role
+  if (to.meta.requiresAdmin && userSession) {
+    try {
+      const user = JSON.parse(userSession);
+      if (user.role !== 'admin') {
+        next('/'); // Redirect to home if not admin
+        return;
+      }
+    } catch (e) {
+      next('/login');
+      return;
+    }
+  }
+  
+  // Redirect authenticated users away from login/signup
+  if ((to.path === '/login' || to.path === '/signup') && isAuthenticated) {
+    next('/');
+    return;
+  }
+  
+  next();
 });
 
 export default router;

@@ -1,217 +1,219 @@
 <template>
-  <div class="checkout-page bg-gray-50">
-    <div class="container mx-auto py-8 px-4">
-      <div class="row">
-        <div class="col-12">
-          <!-- Page Title and Description -->
-          <div class="page-header mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Checkout</h1>
-            <p class="text-gray-600 mt-2">Complete your purchase</p>
-          </div>
+  <div class="checkout-page">
+    <div class="container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1>Checkout</h1>
+          <p>Complete your purchase securely</p>
+        </div>
+      </div>
 
-          <!-- Loading State -->
-          <div v-if="loading" class="loading-state text-center my-12">
-            <div class="spinner"></div>
-            <p class="mt-4 text-gray-600">Loading checkout...</p>
-          </div>
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading checkout...</p>
+      </div>
 
-          <!-- Error State -->
-          <div v-else-if="error" class="error-state text-center my-12 p-6 bg-red-50 rounded-lg">
-            <div class="error-icon mb-4">❌</div>
-            <p class="error-message mb-4">{{ error }}</p>
-            <button @click="fetchCart" class="retry-btn">Try Again</button>
-          </div>
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">⚠️</div>
+        <h3>Something went wrong</h3>
+        <p>{{ error }}</p>
+        <button @click="fetchCart" class="retry-btn">Try Again</button>
+      </div>
 
-          <!-- Empty Cart State -->
-          <div v-else-if="!cartItems.length" class="empty-state text-center my-12 p-8 bg-white rounded-lg shadow-sm">
-            <div class="empty-icon mb-4">🛒</div>
-            <h3 class="text-xl font-semibold mb-2">Your cart is empty</h3>
-            <p class="text-gray-600 mb-6">Add items to your cart before checking out.</p>
-            <router-link to="/scrap-items" class="browse-btn">Browse Items</router-link>
+      <!-- Empty Cart State -->
+      <div v-else-if="!cartItems.length" class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <h3>Your cart is empty</h3>
+        <p>Add items to your cart before checking out</p>
+        <router-link to="/browse-scrap" class="browse-btn">Browse Items</router-link>
+      </div>
+
+      <!-- Checkout Content -->
+      <div v-else class="checkout-content">
+        <div class="checkout-layout">
+          <!-- Order Summary -->
+          <div class="order-summary-section">
+            <div class="summary-card">
+              <div class="summary-header">
+                <h3>Order Summary</h3>
+                <span class="item-count">{{ cartItems.length }} {{ cartItems.length === 1 ? 'item' : 'items' }}</span>
+              </div>
+              
+              <div class="summary-items">
+                <div v-for="item in cartItems" :key="item.id" class="summary-item">
+                  <div class="item-image-container">
+                    <img 
+                      :src="item.images && item.images.length ? item.images[0] : '/images/main.jpg'" 
+                      :alt="item.name" 
+                      class="item-image"
+                    />
+                  </div>
+                  <div class="item-info">
+                    <h4 class="item-name">{{ item.name }}</h4>
+                    <p class="item-details">Quantity: {{ item.quantity }}</p>
+                  </div>
+                  <div class="item-price">
+                    PKR {{ (item.price * item.quantity).toLocaleString() }}
+                  </div>
+                </div>
+              </div>
+              
+              <div class="summary-totals">
+                <div class="total-row">
+                  <span>Subtotal</span>
+                  <span>PKR {{ calculateSubtotal().toLocaleString() }}</span>
+                </div>
+                <div class="total-row">
+                  <span>Shipping</span>
+                  <span>PKR {{ shipping.toLocaleString() }}</span>
+                </div>
+                <div class="total-divider"></div>
+                <div class="total-row grand-total">
+                  <span>Total</span>
+                  <span>PKR {{ calculateTotal().toLocaleString() }}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Checkout Form -->
-          <div v-else class="checkout-container">
-            <div class="lg:flex gap-6">
-              <!-- Order Summary -->
-              <div class="flex-grow">
-                <div class="order-summary bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-                  <div class="summary-header bg-gray-50 p-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800">Order Summary</h3>
-                  </div>
-                  
-                  <div class="summary-items px-4">
-                    <div v-for="(item, index) in cartItems" :key="item.id" 
-                         class="summary-item py-4 border-b border-gray-100 last:border-0">
-                      <div class="flex items-center">
-                        <div class="item-image-container">
-                          <img 
-                            :src="item.images && item.images.length ? item.images[0] : 'default-image.jpg'" 
-                            :alt="item.name" 
-                            class="item-image"
-                          />
-                        </div>
-                        <div class="item-details ml-4">
-                          <h4 class="item-name text-gray-800 font-medium">{{ item.name }}</h4>
-                          <div class="item-meta text-gray-600 text-sm mt-1">
-                            <span class="quantity">Quantity: {{ item.quantity }}</span>
-                          </div>
-                        </div>
-                        <div class="item-price ml-auto font-medium">
-                          PKR {{ (item.price * item.quantity).toLocaleString() }}
-                        </div>
+          <div class="checkout-form-section">
+            <div class="form-card">
+              <div class="form-header">
+                <h3>Delivery Information</h3>
+                <p>Please provide your delivery details</p>
+              </div>
+              
+              <!-- Form Validation Errors -->
+              <div v-if="formErrors.general" class="form-error">
+                <div class="error-icon">⚠️</div>
+                <p>{{ formErrors.general }}</p>
+              </div>
+              
+              <form @submit.prevent="placeOrder" class="checkout-form">
+                <div class="form-group">
+                  <label for="name">Full Name</label>
+                  <input 
+                    type="text"
+                    id="name"
+                    v-model="formData.name"
+                    :class="['form-input', { 'error': formErrors.name }]"
+                    placeholder="Enter your full name"
+                    required
+                  />
+                  <span v-if="formErrors.name" class="field-error">{{ formErrors.name }}</span>
+                </div>
+                
+                <div class="form-group">
+                  <label for="phone">Phone Number</label>
+                  <input 
+                    type="tel"
+                    id="phone"
+                    v-model="formData.phone"
+                    @input="handlePhoneInput"
+                    @keypress="restrictToNumbers"
+                    @paste="handlePhonePaste"
+                    :class="['form-input', { 'error': formErrors.phone }]"
+                    placeholder="Enter your phone number"
+                    maxlength="15"
+                    required
+                  />
+                  <span v-if="formErrors.phone" class="field-error">{{ formErrors.phone }}</span>
+                </div>
+                
+                <div class="form-group">
+                  <label for="address">Delivery Address</label>
+                  <textarea 
+                    id="address"
+                    v-model="formData.address"
+                    :class="['form-textarea', { 'error': formErrors.address }]"
+                    placeholder="Enter your complete delivery address"
+                    rows="3"
+                    required
+                  ></textarea>
+                  <span v-if="formErrors.address" class="field-error">{{ formErrors.address }}</span>
+                </div>
+                
+                <div class="form-group">
+                  <label for="notes">Order Notes (Optional)</label>
+                  <textarea 
+                    id="notes"
+                    v-model="formData.notes"
+                    class="form-textarea"
+                    placeholder="Any special instructions for delivery"
+                    rows="2"
+                  ></textarea>
+                </div>
+                
+                <div class="payment-section">
+                  <h4>Payment Method</h4>
+                  <div class="payment-option">
+                    <input
+                      type="radio"
+                      id="cod"
+                      name="payment"
+                      value="cod"
+                      v-model="formData.paymentMethod"
+                      checked
+                    />
+                    <label for="cod">
+                      <div class="payment-info">
+                        <span class="payment-name">Cash on Delivery</span>
+                        <span class="payment-desc">Pay when you receive your order</span>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div class="summary-totals p-4 bg-gray-50">
-                    <div class="total-row flex justify-between py-2">
-                      <span class="text-gray-600">Subtotal</span>
-                      <span class="font-medium">PKR {{ calculateSubtotal().toLocaleString() }}</span>
-                    </div>
-                    <div class="total-row flex justify-between py-2">
-                      <span class="text-gray-600">Shipping</span>
-                      <span class="font-medium">PKR {{ shipping.toLocaleString() }}</span>
-                    </div>
-                    <div class="total-row grand-total flex justify-between py-2 border-t border-gray-200 mt-2 pt-2">
-                      <span class="font-semibold">Total</span>
-                      <span class="font-bold text-lg">PKR {{ calculateTotal().toLocaleString() }}</span>
-                    </div>
+                      <div class="payment-icon">💰</div>
+                    </label>
                   </div>
                 </div>
-              </div>
-
-              <!-- Checkout Form -->
-              <div class="lg:w-96">
-                <div class="checkout-form bg-white rounded-lg shadow-sm p-6">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-4">Delivery Information</h3>
-                  
-                  <!-- Form Validation Errors -->
-                  <div v-if="formErrors.general" class="form-error mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p class="text-red-600 text-sm">{{ formErrors.general }}</p>
-                  </div>
-                  
-                  <form @submit.prevent="placeOrder">
-                    <div class="form-group mb-4">
-                      <label class="block text-gray-700 text-sm font-medium mb-2" for="name">
-                        Full Name
-                      </label>
-                      <input 
-                        type="text"
-                        id="name"
-                        v-model="formData.name"
-                        :class="[
-                          'form-input w-full px-3 py-2 border rounded-md',
-                          formErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        ]"
-                        placeholder="Enter your full name"
-                        required
-                      />
-                      <p v-if="formErrors.name" class="text-red-600 text-sm mt-1">{{ formErrors.name }}</p>
-                    </div>
-                    
-                    <div class="form-group mb-4">
-                      <label class="block text-gray-700 text-sm font-medium mb-2" for="phone">
-                        Phone Number
-                      </label>
-                      <input 
-                        type="tel"
-                        id="phone"
-                        v-model="formData.phone"
-                        @input="handlePhoneInput"
-                        @keypress="restrictToNumbers"
-                        @paste="handlePhonePaste"
-                        :class="[
-                          'form-input w-full px-3 py-2 border rounded-md',
-                          formErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        ]"
-                        placeholder="Enter your phone number (numbers only)"
-                        maxlength="15"
-                        required
-                      />
-                      <p v-if="formErrors.phone" class="text-red-600 text-sm mt-1">{{ formErrors.phone }}</p>
-                    </div>
-                    
-                    <div class="form-group mb-4">
-                      <label class="block text-gray-700 text-sm font-medium mb-2" for="address">
-                        Delivery Address
-                      </label>
-                      <textarea 
-                        id="address"
-                        v-model="formData.address"
-                        :class="[
-                          'form-textarea w-full px-3 py-2 border rounded-md',
-                          formErrors.address ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                        ]"
-                        placeholder="Enter your complete address"
-                        rows="3"
-                        required
-                      ></textarea>
-                      <p v-if="formErrors.address" class="text-red-600 text-sm mt-1">{{ formErrors.address }}</p>
-                    </div>
-                    
-                    <div class="form-group mb-6">
-                      <label class="block text-gray-700 text-sm font-medium mb-2" for="notes">
-                        Order Notes (Optional)
-                      </label>
-                      <textarea 
-                        id="notes"
-                        v-model="formData.notes"
-                        class="form-textarea w-full px-3 py-2 border border-gray-300 rounded-md"
-                        placeholder="Any special instructions for delivery"
-                        rows="2"
-                      ></textarea>
-                    </div>
-                    
-                    <div class="payment-options mb-6">
-                      <h4 class="text-md font-semibold text-gray-800 mb-3">Payment Method</h4>
-                      <div class="payment-option mb-2">
-                        <input
-                          type="radio"
-                          id="cod"
-                          name="payment"
-                          value="cod"
-                          v-model="formData.paymentMethod"
-                          class="mr-2"
-                          checked
-                        />
-                        <label for="cod">Cash on Delivery (COD)</label>
-                      </div>
-                    </div>
-                    
-                    <button 
-                      type="submit" 
-                      class="place-order-btn w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition duration-200"
-                      :disabled="isSubmitting"
-                    >
-                      <span v-if="!isSubmitting">Place Order</span>
-                      <span v-else class="inline-flex items-center">
-                        <span class="spinner-small mr-2"></span>
-                        Processing...
-                      </span>
-                    </button>
-                  </form>
-                </div>
-              </div>
+                
+                <button 
+                  type="submit" 
+                  class="place-order-btn"
+                  :disabled="isSubmitting"
+                >
+                  <span v-if="!isSubmitting" class="btn-content">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6"/>
+                    </svg>
+                    Place Order
+                  </span>
+                  <span v-else class="btn-content loading">
+                    <div class="spinner-small"></div>
+                    Processing...
+                  </span>
+                </button>
+              </form>
             </div>
           </div>
         </div>
       </div>
     </div>
     
-    <!-- Confirmation Modal -->
-    <div v-if="showConfirmModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="modal-content bg-white rounded-lg p-8 max-w-md w-full mx-4">
-        <div class="success-icon mb-4 text-5xl text-green-500 text-center">✓</div>
-        <h3 class="text-xl font-semibold mb-2 text-center">Order Placed Successfully!</h3>
-        <p class="text-gray-600 mb-6 text-center">Your order has been placed successfully. Order ID: #{{ orderId }}</p>
-        <div class="modal-actions flex flex-col sm:flex-row gap-3 justify-center">
-          <router-link :to="{ name: 'order-history-with-id', params: { orderId: orderId } }" class="view-orders-btn bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 text-center">
-          View My Orders
-        </router-link>
-        <router-link to="/scrap-items" class="shop-more-btn bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200 text-center">
-          Shop More
-        </router-link>
+    <!-- Success Modal -->
+    <div v-if="showConfirmModal" class="modal-overlay">
+      <div class="modal-content success-modal">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div class="modal-header">
+          <h3>Order Placed Successfully!</h3>
+        </div>
+        <div class="modal-body">
+          <p>Your order has been placed successfully.</p>
+          <div class="order-id">Order ID: <strong>#{{ orderId }}</strong></div>
+        </div>
+        <div class="modal-actions">
+          <router-link :to="{ name: 'order-history-with-id', params: { orderId: orderId } }" class="primary-btn">
+            View My Orders
+          </router-link>
+          <router-link to="/browse-scrap" class="secondary-btn">
+            Continue Shopping
+          </router-link>
         </div>
       </div>
     </div>
@@ -376,15 +378,7 @@ export default {
           notes: this.formData.notes || ''
         };
         
-        console.log("Sending order data:", orderData);
-        
-        // Add detailed logging for API call
-        console.log("Making API request to:", 'http://127.0.0.1:8000/api/orders/checkout');
-        console.log("With headers:", {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        });
+        // Sending order data to checkout endpoint
         
         const response = await fetch('http://127.0.0.1:8000/api/orders/checkout', {
           method: 'POST',
@@ -396,10 +390,8 @@ export default {
           body: JSON.stringify(orderData)
         });
         
-        // Log full response for debugging
+        // Get response data
         const responseText = await response.text();
-        console.log("API Response Status:", response.status);
-        console.log("API Response Text:", responseText);
         
         // Try to parse the response as JSON
         let responseData;
@@ -415,7 +407,7 @@ export default {
           throw new Error(responseData?.error || responseData?.message || 'Failed to place order');
         }
         
-        console.log("Order placed successfully:", responseData);
+        // Order placed successfully
         this.orderId = responseData.order_id || responseData.id;
         this.showConfirmModal = true;
         
@@ -486,265 +478,677 @@ export default {
 };
 </script>
 <style scoped>
-  .checkout-page {
-    min-height: 80vh;
-    background-color: #f9f9fc;
+.checkout-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Page Header */
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.header-content h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.header-content p {
+  font-size: 1.1rem;
+  color: #718096;
+}
+
+/* Loading, Error, Empty States */
+.loading-state, .error-state, .empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin: 2rem 0;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6c63ff;
+  border-radius: 50%;
+  width: 3rem;
+  height: 3rem;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+.spinner-small {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-state p {
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.error-state {
+  background: #fef5e7;
+  border: 1px solid #f6ad55;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #c53030;
+  margin-bottom: 1rem;
+}
+
+.error-state p {
+  color: #744210;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.retry-btn {
+  background: #6c63ff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry-btn:hover {
+  background: #5a52ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  color: #cbd5e0;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  color: #718096;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.browse-btn {
+  display: inline-block;
+  background: #6c63ff;
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.browse-btn:hover {
+  background: #5a52ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+}
+
+/* Checkout Content */
+.checkout-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 1fr 450px;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Order Summary */
+.order-summary-section {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.summary-card {
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.summary-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.item-count {
+  color: #718096;
+  font-size: 0.9rem;
+  background: #e2e8f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+}
+
+.summary-items {
+  padding: 1rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.summary-item {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.item-image-container {
+  width: 60px;
+  height: 60px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-info {
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 0.25rem 0;
+}
+
+.item-details {
+  font-size: 0.9rem;
+  color: #718096;
+  margin: 0;
+}
+
+.item-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-align: right;
+}
+
+.summary-totals {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.total-row:last-child {
+  margin-bottom: 0;
+}
+
+.total-row span:first-child {
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+.total-row span:last-child {
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 1rem;
+}
+
+.total-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 1rem 0;
+}
+
+.grand-total {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  padding-top: 1rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+/* Form Section */
+.checkout-form-section {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.form-card {
+  padding: 0;
+}
+
+.form-header {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.form-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 0.5rem 0;
+}
+
+.form-header p {
+  color: #718096;
+  margin: 0;
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: #fef5e7;
+  border-bottom: 1px solid #f6ad55;
+}
+
+.form-error .error-icon {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.form-error p {
+  color: #744210;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.checkout-form {
+  padding: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus, .form-textarea:focus {
+  outline: none;
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+  background: white;
+}
+
+.form-input.error, .form-textarea.error {
+  border-color: #e53e3e;
+  background: #fef5e7;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.field-error {
+  display: block;
+  color: #e53e3e;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.payment-section {
+  margin-bottom: 2rem;
+}
+
+.payment-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+}
+
+.payment-option {
+  position: relative;
+}
+
+.payment-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.payment-option label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-option input[type="radio"]:checked + label {
+  border-color: #6c63ff;
+  background: #f8fafc;
+}
+
+.payment-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.payment-name {
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.payment-desc {
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.payment-icon {
+  font-size: 1.5rem;
+}
+
+.place-order-btn {
+  width: 100%;
+  background: #6c63ff;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.place-order-btn:hover:not(:disabled) {
+  background: #5a52ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+}
+
+.place-order-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.btn-content.loading {
+  opacity: 0.8;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
+  max-width: 450px;
+  width: 90%;
+  overflow: hidden;
+}
+
+.success-modal .success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  background: #10b981;
+  color: white;
+  border-radius: 50%;
+  margin: 2rem auto 1rem;
+}
+
+.success-icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.modal-header {
+  text-align: center;
+  padding: 0 2rem;
+}
+
+.modal-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+}
+
+.modal-body {
+  text-align: center;
+  padding: 0 2rem 2rem;
+}
+
+.modal-body p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.order-id {
+  background: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  color: #2d3748;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.primary-btn {
+  flex: 1;
+  background: #6c63ff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  text-align: center;
+}
+
+.primary-btn:hover {
+  background: #5a52ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+}
+
+.secondary-btn {
+  flex: 1;
+  background: #f8fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  text-align: center;
+}
+
+.secondary-btn:hover {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .checkout-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
   
-  .page-header h1 {
-    margin-top: 1rem;
-    color: #3B1E54;
-    font-weight: 700; 
+  .order-summary-section {
+    order: 2;
   }
   
-  .page-header p {
-    color: #718096;
-    font-size: 1.1rem;
+  .checkout-form-section {
+    order: 1;
   }
   
-  /* Loading, Error, Empty States */
-  .loading-state, .error-state, .empty-state {
-    padding: 40px 20px;
+  .summary-card {
+    position: static;
   }
   
-  .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    border-top: 4px solid #9B7EBD;
-    width: 50px;
-    height: 50px;
-    margin: 0 auto 20px;
-    animation: spin 1s linear infinite;
-  }
-  
-  .spinner-small {
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top: 2px solid #ffffff;
-    width: 16px;
-    height: 16px;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  .error-message {
-    color: #e53e3e;
-    font-size: 1.1rem;
-  }
-  
-  .error-icon {
+  .header-content h1 {
     font-size: 2rem;
-    color: #e53e3e;
-  }
-  
-  .retry-btn {
-    background-color: #9B7EBD;
-    color: #fff;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .retry-btn:hover {
-    background-color: #8a68ad;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .empty-icon {
-    font-size: 3.5rem;
-    margin-bottom: 20px;
-    color: #9B7EBD;
-  }
-  
-  .browse-btn {
-    display: inline-block;
-    background-color: #D4BEE4;
-    color: #3B1E54;
-    padding: 12px 28px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-  
-  .browse-btn:hover {
-    background-color: #EEEEEE;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  /* Item Summary */
-  .item-image-container {
-    width: 60px;
-    height: 60px;
-    flex-shrink: 0;
-  }
-  
-  .item-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 6px;
-  }
-  
-  .item-name {
-    font-size: 1rem;
-    line-height: 1.3;
-  }
-  
-  /* Form Styling */
-  .form-input, .form-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    background-color: #f8fafc;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  
-  .form-input:focus, .form-textarea:focus {
-    border-color: #9B7EBD;
-    box-shadow: 0 0 0 3px rgba(155, 126, 189, 0.2);
-    outline: none;
-  }
-  
-  .form-textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .place-order-btn {
-    display: block;
-    width: 100%;
-    background-color: #D4BEE4;
-    color: #3B1E54;
-    border: none;
-    padding: 14px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .place-order-btn:hover:not(:disabled) {
-    background-color: #9B7EBD;
-    color: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .place-order-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-  
-  /* Confirmation Modal */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(2px);
-  }
-  
-  .modal-content {
-    background-color: white;
-    border-radius: 12px;
-    padding: 32px;
-    max-width: 450px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  }
-  
-  .success-icon {
-    background-color: #10B981;
-    color: white;
-    font-size: 1.8rem;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 20px;
   }
   
   .modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 10px;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.5rem;
   }
   
-  .view-orders-btn {
-    background-color: #D4BEE4;
-    color: #3B1E54;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
+  .checkout-page {
+    padding: 1rem 0;
   }
   
-  .view-orders-btn:hover {
-    background-color: #9B7EBD;
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  .checkout-form {
+    padding: 1.5rem;
   }
   
-  .shop-more-btn {
-    background-color: #EDF2F7;
-    color: #4A5568;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
+  .form-header {
+    padding: 1rem 1.5rem;
   }
   
-  .shop-more-btn:hover {
-    background-color: #E2E8F0;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  .summary-header {
+    padding: 1rem 1.5rem;
   }
   
-  /* Responsive */
-  @media (max-width: 992px) {
-    .lg\:w-96 {
-      width: 100%;
-      margin-top: 24px;
-    }
+  .summary-items {
+    padding: 0.5rem 0;
   }
   
-  @media (max-width: 576px) {
-    .modal-content {
-      padding: 24px 16px;
-    }
-    
-    .modal-actions {
-      flex-direction: column;
-      gap: 12px;
-    }
-    
-    .view-orders-btn, .shop-more-btn {
-      width: 100%;
-    }
+  .summary-item {
+    padding: 0.75rem 1.5rem;
   }
-  </style>
+  
+  .summary-totals {
+    padding: 1rem 1.5rem;
+  }
+}
+</style>

@@ -37,16 +37,24 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title'           => 'required|string',
-            'description'     => 'nullable|string',
-            'required_roles'  => 'required|string|not_regex:/\d/',
-            'skills_required' => 'required|string|not_regex:/\d/',
-            'deadline'        => 'required|date',
-            'budget'          => 'required|numeric'
+            'title'           => 'required|string|max:255',
+            'description'     => 'nullable|string|max:1000',
+            'required_roles'  => 'required|string|not_regex:/\d/|max:255',
+            'skills_required' => 'required|string|not_regex:/\d/|max:255',
+            'deadline'        => 'required|date|after:today|date_format:Y-m-d',
+            'budget'          => 'required|numeric|min:0|max:999999.99'
         ], [
             'required_roles.not_regex' => 'Required roles should not contain numbers.',
             'skills_required.not_regex' => 'Skills required should not contain numbers.',
-            'budget.numeric' => 'Budget must be a numeric value.'
+            'budget.numeric' => 'Budget must be a numeric value.',
+            'budget.min' => 'Budget must be a positive value.',
+            'budget.max' => 'Budget cannot exceed $999,999.99.',
+            'deadline.after' => 'Deadline must be a future date.',
+            'deadline.date_format' => 'Deadline must be in YYYY-MM-DD format.',
+            'title.max' => 'Title cannot exceed 255 characters.',
+            'description.max' => 'Description cannot exceed 1000 characters.',
+            'required_roles.max' => 'Required roles cannot exceed 255 characters.',
+            'skills_required.max' => 'Skills required cannot exceed 255 characters.'
         ]);
 
         $project = CollaborativeProject::create([
@@ -212,5 +220,18 @@ return response()->json([
 
         // 3. Return as JSON
         return response()->json($feedback);
+    }
+
+    /**
+     * Get completed project count for statistics
+     */
+    public function getCompletedProjectCount()
+    {
+        try {
+            $count = CollaborativeProject::where('status', 'completed')->count();
+            return response()->json(['count' => $count], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch completed project count', 'error' => $e->getMessage()], 500);
+        }
     }
 }

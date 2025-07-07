@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\CustomRequest;
 use App\Models\CustomRequestImage;
 use App\Models\CustomRequestComment;
+use App\Http\Requests\CustomRequestFormRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -97,7 +98,7 @@ public function decline($id)
 
             // Validate the comment data
             $validatedData = $request->validate([
-                'comment' => 'required|string|max:1000',
+                'comment' => 'required|string|max:1000|regex:/^[a-zA-Z0-9\s\-_.,()!?@#$%^&*+=<>\/\\|`~]+$/',
             ]);
 
             // Create the comment for the custom request
@@ -186,20 +187,11 @@ public function decline($id)
     }
 
     // Store a new custom request
-    public function store(Request $request): JsonResponse
+    public function store(CustomRequestFormRequest $request): JsonResponse
 {
     try {
-        // Validate incoming request data
-        $validatedData = $request->validate([
-            'description' => 'required|string|max:255',
-            'materials' => 'nullable|string|max:255',
-            'dimensions' => 'nullable|string|max:255',
-            'style_preferences' => 'nullable|string|max:255',
-            'budget' => 'nullable|numeric|min:0',
-            'deadline' => 'nullable|date|after:today',
-            'artist_expertise' => 'nullable|string|max:255',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Validate each image
-        ]);
+        // Get validated data from form request
+        $validatedData = $request->validated();
     
         // Create the CustomRequest
         $customRequest = CustomRequest::create([

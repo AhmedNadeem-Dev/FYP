@@ -20,15 +20,17 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-      'http://localhost:8000',   // Laravel backend
-      'http://127.0.0.1:8000',  // Same as localhost, but added to avoid CORS issues
-      'http://localhost:8080',   // Vue.js frontend
-      'http://127.0.0.1:8080',  // Same as localhost, but added to avoid CORS issues
+        'http://localhost:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://127.0.0.1:3000',
+        // Add your production domain here
+        // 'https://your-production-domain.com',
     ],
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'   ],
+    'allowed_headers' => ['*'],
 
     'exposed_headers' => [],
 

@@ -1,19 +1,85 @@
 <template>
-  <div class="forget-password">
-    <h2>Forgot Password</h2>
-    <form @submit.prevent="handleForgetPassword">
-      <div class="form-group">
-        <input
-          type="email"
-          id="email"
-          v-model="email"
-          placeholder="Enter your email"
-          required
-        />
-      </div>
+  <div class="auth-page">
+    <div class="auth-container">
+      <div class="auth-card">
+        <!-- Header -->
+        <div class="auth-header">
+          <h1 class="auth-title">Forgot Password?</h1>
+          <p class="auth-subtitle">No worries! Enter your email address and we'll send you a link to reset your password.</p>
+        </div>
 
-      <button type="submit">Submit</button>
-    </form>
+        <!-- Form -->
+        <form @submit.prevent="sendResetLink" class="auth-form">
+          <!-- Email Field -->
+          <div class="form-group">
+            <label for="email" class="form-label">Email Address</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              <input
+                type="email"
+                id="email"
+                v-model="email"
+                class="form-input"
+                :class="{ 'error': errorMessage }"
+                placeholder="Enter your email address"
+                required
+                autocomplete="email"
+              />
+            </div>
+            <div v-if="errorMessage" class="error-message">
+              {{ errorMessage }}
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button 
+            type="submit" 
+            class="submit-btn"
+            :disabled="loading"
+            :class="{ 'loading': loading }"
+          >
+            <div v-if="loading" class="loading-spinner"></div>
+            {{ loading ? 'Sending Reset Link...' : 'Send Reset Link' }}
+          </button>
+        </form>
+
+        <!-- Back to Login -->
+        <div class="auth-footer">
+          <p class="footer-text">
+            Remember your password? 
+            <router-link to="/login" class="auth-link">Back to Sign In</router-link>
+          </p>
+        </div>
+
+        <!-- Help Section -->
+        <div class="help-section">
+          <div class="help-content">
+            <div class="help-item">
+              <svg class="help-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="help-text">Check your spam folder if you don't receive the email</p>
+            </div>
+            <div class="help-item">
+              <svg class="help-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="help-text">Reset link expires in 60 minutes for security</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div v-if="showSuccessToast" class="toast toast-success">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+      <span>Reset link sent successfully! Check your email.</span>
+    </div>
   </div>
 </template>
 
@@ -25,96 +91,314 @@ export default {
   data() {
     return {
       email: '',
+      loading: false,
+      errorMessage: '',
+      showSuccessToast: false
     };
   },
+  
   methods: {
-    async handleForgetPassword() {
-      try {
-        await axios.post('/api/password/forgot', { email: this.email });
-        this.$router.push({ name: 'VerifyCode', query: { email: this.email } });
-      } catch (error) {
-        console.error(error.response.data.message);
-      }
+    validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
     },
-  },
+    
+    async sendResetLink() {
+      this.errorMessage = '';
+      
+      // Validate email
+      if (!this.email) {
+        this.errorMessage = 'Email address is required';
+        return;
+      }
+      
+      if (!this.validateEmail(this.email)) {
+        this.errorMessage = 'Please enter a valid email address';
+        return;
+      }
+      
+      this.loading = true;
+      
+      try {
+        const response = await axios.post('/api/password/email', {
+          email: this.email
+        });
+        
+        if (response.data.success || response.status === 200) {
+          this.showSuccessToast = true;
+          this.email = ''; // Clear the form
+          
+          // Redirect to login after showing success message
+          setTimeout(() => {
+            this.$router.push('/login');
+          }, 3000);
+        }
+      } catch (error) {
+        if (error.response?.data?.message) {
+          this.errorMessage = error.response.data.message;
+        } else if (error.response?.status === 404) {
+          this.errorMessage = 'No account found with this email address';
+        } else if (error.response?.status === 429) {
+          this.errorMessage = 'Too many requests. Please try again later';
+        } else {
+          this.errorMessage = 'An error occurred. Please try again';
+        }
+      } finally {
+        this.loading = false;
+      }
+    }
+  }
 };
 </script>
 
 <style scoped>
-/* FORGET PASSWORD COMPONENT STYLING */
-.forget-password {
-  max-width: 420px;
-  margin: 2rem auto;
-  padding: 2rem;
-  border: 1px solid #e4e4e4;
-  border-radius: 12px;
-  background-color: #ffffff;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  font-family: 'Poppins', sans-serif;
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* HEADER STYLING */
-.forget-password h2 {
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 480px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 40px;
+  backdrop-filter: blur(10px);
+}
+
+/* Header */
+.auth-header {
   text-align: center;
-  margin-bottom: 1.8rem;
-  font-size: 24px;
-  font-weight: bold;
-  color: #3B1E54;
+  margin-bottom: 32px;
 }
 
-/* FORM GROUP STYLING */
+.auth-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+  letter-spacing: -0.025em;
+}
+
+.auth-subtitle {
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Form */
+.auth-form {
+  margin-bottom: 32px;
+}
+
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 24px;
 }
 
-.form-group input {
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  z-index: 2;
+}
+
+.form-input {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 16px;
-  border: 1px solid #ccc;
+  padding: 12px 12px 12px 44px;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background-color: #f9f9f9;
-  transition: border-color 0.3s ease;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #1f2937;
+  background-color: white;
+  transition: all 0.2s ease;
 }
 
-.form-group input:focus {
-  border-color: #5d9b8b;
+.form-input:focus {
   outline: none;
-  background-color: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-/* SUBMIT BUTTON */
-button {
+.form-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.error-message {
+  margin-top: 8px;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Submit Button */
+.submit-btn {
   width: 100%;
-  padding: 14px;
-  font-size: 18px;
-  font-weight: bold;
-  background-color: #D4BEE4;
-  color: #3B1E54;
+  background: #6366f1;
+  color: white;
   border: none;
   border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin-top: 1.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
 }
 
-button:hover {
-  background-color: #EEEEEE;
+.submit-btn:hover:not(:disabled) {
+  background: #5855eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
-button:active {
-  background-color: #9B7EBD;
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
-/* RESPONSIVE DESIGN */
-@media screen and (max-width: 480px) {
-  .forget-password {
-    padding: 1.5rem;
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Footer */
+.auth-footer {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.footer-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.auth-link {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.auth-link:hover {
+  color: #4f46e5;
+}
+
+/* Help Section */
+.help-section {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 24px;
+}
+
+.help-content {
+  space-y: 16px;
+}
+
+.help-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.help-icon {
+  color: #6366f1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.help-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #10b981;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
-  button {
-    padding: 12px;
-    font-size: 16px;
+/* Responsive */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 24px;
+  }
+  
+  .auth-title {
+    font-size: 1.75rem;
   }
 }
 </style>

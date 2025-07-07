@@ -1,132 +1,130 @@
 <template>
-  <div class="cart-page bg-gray-50">
-    <div class="container mx-auto py-8 px-4">
-      <div class="row">
-        <div class="col-12">
-          <!-- Page Title and Description -->
-          <div class="page-header mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">My Shopping Cart</h1>
-            <p class="text-gray-600 mt-2">Items you're ready to purchase</p>
-          </div>
-          
-          <!-- Loading State -->
-          <div v-if="loading" class="loading-state text-center my-12">
-            <div class="spinner"></div>
-            <p class="mt-4 text-gray-600">Loading your cart...</p>
-          </div>
-          
-          <!-- Error State -->
-          <div v-else-if="error" class="error-state text-center my-12 p-6 bg-red-50 rounded-lg">
-            <div class="error-icon mb-4">❌</div>
-            <p class="error-message mb-4">{{ error }}</p>
-            <button @click="fetchCart" class="retry-btn">Try Again</button>
-          </div>
-          
-          <!-- Empty Cart State -->
-          <div v-else-if="!cartItems.length" class="empty-state text-center my-12 p-8 bg-white rounded-lg shadow-sm">
-            <div class="empty-icon mb-4">🛒</div>
-            <h3 class="text-xl font-semibold mb-2">Your cart is empty</h3>
-            <p class="text-gray-600 mb-6">Add items to your cart to get started!</p>
-            <router-link to="/scrap-items" class="browse-btn">Browse Items</router-link>
-          </div>
-          
+  <div class="cart-page">
+    <div class="container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1>Shopping Cart</h1>
+          <p>Review your items and proceed to checkout</p>
+        </div>
+      </div>
+      
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading your cart...</p>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">⚠️</div>
+        <h3>Something went wrong</h3>
+        <p>{{ error }}</p>
+        <button @click="fetchCart" class="retry-btn">Try Again</button>
+      </div>
+      
+      <!-- Empty Cart State -->
+      <div v-else-if="!cartItems.length" class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <h3>Your cart is empty</h3>
+        <p>Discover amazing scrap items and add them to your cart</p>
+        <router-link to="/browse-scrap" class="browse-btn">Browse Items</router-link>
+      </div>
+      
+      <!-- Cart Content -->
+      <div v-else class="cart-content">
+        <div class="cart-layout">
           <!-- Cart Items -->
-          <div v-else class="cart-container">
-            <div class="lg:flex gap-6">
-              <!-- Cart Items List -->
-              <div class="flex-grow">
-                <div class="cart-header d-none d-md-flex bg-white p-4 rounded-t-lg shadow-sm border-b border-gray-200">
-                  <div class="row w-100">
-                    <div class="col-md-6 font-medium text-gray-700">Product</div>
-                    <div class="col-md-2 text-center font-medium text-gray-700">Price</div>
-                    <div class="col-md-2 text-center font-medium text-gray-700">Quantity</div>
-                    <div class="col-md-2 text-center font-medium text-gray-700">Subtotal</div>
-                  </div>
+          <div class="cart-items-section">
+            <div class="section-header">
+              <h2>Cart Items</h2>
+              <span class="item-count">{{ getTotalItems }} {{ getTotalItems === 1 ? 'item' : 'items' }}</span>
+            </div>
+            
+            <div class="cart-items">
+              <div v-for="item in cartItems" :key="item.id" class="cart-item">
+                <div class="item-image-container">
+                  <img 
+                    :src="item.images && item.images.length ? item.images[0] : '/images/main.jpg'" 
+                    :alt="item.name" 
+                    class="item-image"
+                    @click="viewProductDetails(item.id)"
+                  />
                 </div>
                 
-                <div class="cart-items-wrapper bg-white rounded-b-lg shadow-sm overflow-hidden">
-                  <div v-for="(item, index) in cartItems" :key="item.id" class="cart-item border-b border-gray-100 last:border-0">
-                    <div class="row align-items-center p-4">
-                      <!-- Product Info -->
-                      <div class="col-md-6 product-col">
-                        <div class="d-flex align-items-center">
-                          <div class="relative">
-                            <img 
-                              :src="item.images && item.images.length ? item.images[0] : 'default-image.jpg'" 
-                              :alt="item.name" 
-                              class="cart-item-image"
-                              @click="viewProductDetails(item.id)"
-                            />
-                          </div>
-                          <div class="product-info ml-4">
-                            <h3 class="product-name" @click="viewProductDetails(item.id)">{{ item.name }}</h3>
-                            <button @click="removeFromCart(item.id)" class="remove-btn mt-1">
-                              <span class="inline-flex items-center">
-                                <span class="remove-icon mr-1">×</span> Remove
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <!-- Price -->
-                      <div class="col-6 col-md-2 text-md-center">
-                        <div class="mobile-label d-md-none">Price:</div>
-                        <div class="price">PKR {{ item.price.toLocaleString() }}</div>
-                      </div>
-                      
-                      <!-- Quantity -->
-                      <div class="col-6 col-md-2 text-md-center">
-                        <div class="mobile-label d-md-none">Quantity:</div>
-                        <div class="quantity-controls">
-                          <button 
-                            @click="decrementQuantity(item)" 
-                            :disabled="item.quantity <= 1"
-                            class="quantity-btn decrement"
-                            aria-label="Decrease quantity"
-                          >−</button>
-                          <span class="quantity">{{ item.quantity }}</span>
-                          <button 
-                            @click="incrementQuantity(item)" 
-                            class="quantity-btn increment"
-                            aria-label="Increase quantity"
-                          >+</button>
-                        </div>
-                      </div>
-                      
-                      <!-- Subtotal -->
-                      <div class="col-12 col-md-2 text-md-center mt-3 mt-md-0">
-                        <div class="mobile-label d-md-none">Subtotal:</div>
-                        <div class="subtotal">PKR {{ calculateSubtotal(item).toLocaleString() }}</div>
-                      </div>
-                    </div>
+                <div class="item-details">
+                  <h3 class="item-name" @click="viewProductDetails(item.id)">{{ item.name }}</h3>
+                  <p class="item-price">PKR {{ item.price.toLocaleString() }}</p>
+                  <button @click="removeFromCart(item.id)" class="remove-btn">
+                    <svg class="remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Remove
+                  </button>
+                </div>
+                
+                <div class="item-actions">
+                  <div class="quantity-controls">
+                    <button 
+                      @click="decrementQuantity(item)" 
+                      :disabled="item.quantity <= 1"
+                      class="quantity-btn"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                      </svg>
+                    </button>
+                    <span class="quantity">{{ item.quantity }}</span>
+                    <button 
+                      @click="incrementQuantity(item)" 
+                      class="quantity-btn"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div class="item-subtotal">
+                    <span class="subtotal-label">Subtotal</span>
+                    <span class="subtotal-amount">PKR {{ calculateSubtotal(item).toLocaleString() }}</span>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+          
+          <!-- Cart Summary -->
+          <div class="cart-summary-section">
+            <div class="summary-card">
+              <div class="summary-header">
+                <h3>Order Summary</h3>
+              </div>
               
-              <!-- Cart Summary -->
-              <div class="summary-wrapper lg:w-80 mt-6 lg:mt-0">
-                <div class="summary-card sticky top-4">
-                  <h3 class="text-lg font-semibold mb-4">Order Summary</h3>
-                  <div class="summary-row">
-                    <span class="text-gray-600">Items ({{ getTotalItems }})</span>
-                    <span class="font-medium">PKR {{ calculateTotal().toLocaleString() }}</span>
-                  </div>
-                  <div class="summary-row">
-                    <span class="text-gray-600">Shipping</span>
-                    <span class="text-gray-600">To be calculated</span>
-                  </div>
-                  <div class="summary-total">
-                    <span>Total</span>
-                    <span class="text-xl">PKR {{ calculateTotal().toLocaleString() }}</span>
-                  </div>
-                  <button @click="proceedToCheckout" class="checkout-btn">
-                    Proceed to Checkout
-                  </button>
-                  <button @click="clearCart" class="clear-cart-btn">
-                    Clear Cart
-                  </button>
+              <div class="summary-details">
+                <div class="summary-row">
+                  <span>Items ({{ getTotalItems }})</span>
+                  <span>PKR {{ calculateTotal().toLocaleString() }}</span>
                 </div>
+                <div class="summary-row">
+                  <span>Shipping</span>
+                  <span class="shipping-note">Calculated at checkout</span>
+                </div>
+                <div class="summary-divider"></div>
+                <div class="summary-total">
+                  <span>Total</span>
+                  <span>PKR {{ calculateTotal().toLocaleString() }}</span>
+                </div>
+              </div>
+              
+              <div class="summary-actions">
+                <button @click="proceedToCheckout" class="checkout-btn">
+                  <svg class="checkout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6"/>
+                  </svg>
+                  Proceed to Checkout
+                </button>
+                <button @click="clearCart" class="clear-btn">Clear Cart</button>
               </div>
             </div>
           </div>
@@ -137,10 +135,14 @@
     <!-- Confirmation Modal -->
     <div v-if="showConfirmModal" class="modal-overlay">
       <div class="modal-content">
-        <h3 class="text-lg font-semibold mb-2">{{ confirmModalTitle }}</h3>
-        <p class="text-gray-600">{{ confirmModalMessage }}</p>
+        <div class="modal-header">
+          <h3>{{ confirmModalTitle }}</h3>
+        </div>
+        <div class="modal-body">
+          <p>{{ confirmModalMessage }}</p>
+        </div>
         <div class="modal-actions">
-          <button @click="confirmAction" class="confirm-btn">Yes</button>
+          <button @click="confirmAction" class="confirm-btn">Yes, Continue</button>
           <button @click="cancelAction" class="cancel-btn">Cancel</button>
         </div>
       </div>
@@ -149,11 +151,15 @@
     <!-- Login Modal -->
     <div v-if="showLoginModal" class="modal-overlay">
       <div class="modal-content">
-        <h3 class="text-lg font-semibold mb-2">Please Log In</h3>
-        <p class="text-gray-600 mb-4">You need to be logged in to view your cart.</p>
+        <div class="modal-header">
+          <h3>Login Required</h3>
+        </div>
+        <div class="modal-body">
+          <p>Please log in to view your cart and continue shopping.</p>
+        </div>
         <div class="modal-actions">
-          <router-link to="/login" class="primary-button">Log In</router-link>
-          <button @click="closeLoginModal" class="secondary-button">Cancel</button>
+          <router-link to="/login" class="login-btn">Log In</router-link>
+          <button @click="closeLoginModal" class="cancel-btn">Cancel</button>
         </div>
       </div>
     </div>
@@ -221,15 +227,14 @@ export default {
         
         const data = await response.json();
         this.cartItems = data.items || [];
-        console.log('Cart items loaded:', this.cartItems);
+        // Cart items loaded successfully
         
         // Debug: Check each item's ID structure
         this.cartItems.forEach(item => {
-          console.log('Cart item:', {
-            id: item.id,
-            product_id: item.product_id,
-            name: item.name
-          });
+          // Validate item structure
+          if (!item.id) {
+            console.warn('Cart item missing ID:', item);
+          }
         });
       } catch (err) {
         console.error("Error fetching cart:", err);
@@ -251,7 +256,7 @@ export default {
         return;
       }
       
-      console.log('Removing product with ID:', productId); // Debug log
+              // Removing product from cart
       this.confirmModalTitle = "Remove Item";
       this.confirmModalMessage = "Are you sure you want to remove this item from your cart?";
       this.confirmActionType = 'remove';
@@ -329,7 +334,7 @@ export default {
             throw new Error(errorData.error || 'Failed to update quantity');
           }
           
-          console.log(`Updated quantity for product ${productId} to ${quantity}`);
+          // Updated quantity successfully
         } catch (err) {
           console.error("Error updating quantity:", err);
           // Revert the client-side change if API fails
@@ -359,7 +364,7 @@ export default {
             throw new Error('Invalid product ID');
           }
           
-          console.log('Removing item with ID:', this.actionItemId); // Debug log
+          // Removing item from cart
           
           const response = await fetch(`http://127.0.0.1:8000/api/cart/remove/${this.actionItemId}`, {
             method: 'DELETE',
@@ -373,7 +378,7 @@ export default {
           if (response.ok) {
             // Remove the item from local cart state
             this.cartItems = this.cartItems.filter(item => item.id != this.actionItemId);
-            console.log(`Removed item ${this.actionItemId} from cart`);
+            // Item removed from cart successfully
           } else {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Failed to remove item');
@@ -391,7 +396,7 @@ export default {
           if (response.ok) {
             // Clear the cart
             this.cartItems = [];
-            console.log('Cart cleared successfully');
+            // Cart cleared successfully
           } else {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Failed to clear cart');
@@ -420,7 +425,7 @@ export default {
       }
       
       // Navigate to checkout page
-      console.log('Proceeding to checkout with items:', this.cartItems.length);
+      // Proceeding to checkout
       this.$router.push({ name: 'checkout' });
     },
     
@@ -450,34 +455,53 @@ export default {
 </script>
 <style scoped>
 .cart-page {
-  min-height: 80vh;
-  background-color: #f9f9fc;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 0;
 }
 
-.page-header h1 {
-  margin-top: 1rem;
-  color: #3B1E54;
-  font-weight: 700; 
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
-.page-header p {
-  color: #718096;
+/* Page Header */
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.header-content h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.header-content p {
   font-size: 1.1rem;
+  color: #718096;
 }
 
 /* Loading, Error, Empty States */
 .loading-state, .error-state, .empty-state {
-  padding: 40px 20px;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin: 2rem 0;
 }
 
 .spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6c63ff;
   border-radius: 50%;
-  border-top: 4px solid #9B7EBD;
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 20px;
+  width: 3rem;
+  height: 3rem;
   animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
 }
 
 @keyframes spin {
@@ -485,144 +509,208 @@ export default {
   100% { transform: rotate(360deg); }
 }
 
-.error-message {
-  color: #e53e3e;
+.loading-state p {
+  color: #718096;
   font-size: 1.1rem;
 }
 
+.error-state {
+  background: #fef5e7;
+  border: 1px solid #f6ad55;
+}
+
 .error-icon {
-  font-size: 2rem;
-  color: #e53e3e;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #c53030;
+  margin-bottom: 1rem;
+}
+
+.error-state p {
+  color: #744210;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
 }
 
 .retry-btn {
-  background-color: #9B7EBD;
-  color: #fff;
+  background: #6c63ff;
+  color: white;
   border: none;
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .retry-btn:hover {
-  background-color: #8a68ad;
+  background: #5a52ff;
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
 }
 
 .empty-icon {
-  font-size: 3.5rem;
-  margin-bottom: 20px;
-  color: #9B7EBD;
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  color: #cbd5e0;
 }
 
 .empty-state h3 {
+  font-size: 1.5rem;
   font-weight: 600;
   color: #4a5568;
-  margin-bottom: 10px;
+  margin-bottom: 1rem;
 }
 
 .empty-state p {
   color: #718096;
-  margin-bottom: 20px;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
 }
 
 .browse-btn {
   display: inline-block;
-  background-color: #D4BEE4;
-  color: #3B1E54;
-  padding: 12px 28px;
-  border-radius: 8px;
+  background: #6c63ff;
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .browse-btn:hover {
-  background-color: #EEEEEE;
+  background: #5a52ff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
 }
 
-/* Cart Container */
-.cart-container {
-  margin-bottom: 40px;
+/* Cart Content */
+.cart-content {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.cart-items-wrapper {
-  transition: box-shadow 0.3s ease;
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  align-items: start;
 }
 
-.cart-items-wrapper:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+/* Cart Items Section */
+.cart-items-section {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
-/* Cart Header */
-.cart-header {
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-header h2 {
+  font-size: 1.25rem;
   font-weight: 600;
-  padding: 16px;
-  border-radius: 8px 8px 0 0;
-  color: #4a5568;
+  color: #2d3748;
+  margin: 0;
 }
 
-/* Cart Items */
+.item-count {
+  color: #718096;
+  font-size: 0.9rem;
+  background: #e2e8f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+}
+
+.cart-items {
+  padding: 1rem 0;
+}
+
 .cart-item {
-  background-color: #fff;
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.2s ease;
 }
 
 .cart-item:hover {
-  background-color: #f7fafc;
+  background: #f8fafc;
 }
 
-.cart-item-image {
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+.item-image-container {
   width: 80px;
   height: 80px;
-  object-fit: cover;
-  border-radius: 8px;
+  border-radius: 0.5rem;
+  overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
-.cart-item-image:hover {
+.item-image-container:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.product-col {
-  margin-bottom: 15px;
+.item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.product-info {
-  margin-left: 15px;
+.item-details {
+  min-width: 0;
 }
 
-.product-name {
+.item-name {
   font-size: 1.1rem;
   font-weight: 600;
   color: #2d3748;
-  margin-bottom: 8px;
+  margin: 0 0 0.5rem 0;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s ease;
 }
 
-.product-name:hover {
-  color: #9B7EBD;
+.item-name:hover {
+  color: #6c63ff;
+}
+
+.item-price {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0 0 0.75rem 0;
+  font-weight: 500;
 }
 
 .remove-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   background: none;
   border: none;
   color: #e53e3e;
-  padding: 0;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: color 0.2s;
-  display: inline-flex;
-  align-items: center;
+  transition: color 0.2s ease;
+  padding: 0;
 }
 
 .remove-btn:hover {
@@ -630,51 +718,42 @@ export default {
 }
 
 .remove-icon {
-  font-size: 1.2rem;
-  font-weight: bold;
+  width: 1rem;
+  height: 1rem;
 }
 
-.mobile-label {
-  font-weight: 600;
-  color: #4a5568;
-  margin-bottom: 5px;
+.item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1rem;
 }
 
-.price, .subtotal {
-  font-weight: 600;
-  color: #2d3748;
-}
-.subtotal{
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-}
-/* Quantity Controls */
 .quantity-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 8px;
+  background: #f8fafc;
+  border-radius: 0.5rem;
   overflow: hidden;
-  width: fit-content;
-  margin: 0 auto;
+  border: 1px solid #e2e8f0;
 }
 
 .quantity-btn {
-  width: 32px;
-  height: 32px;
-  background-color: #f7fafc;
-  border: 1px solid #e2e8f0;
+  width: 2rem;
+  height: 2rem;
+  background: none;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.2rem;
-  line-height: 1;
   transition: all 0.2s ease;
+  color: #4a5568;
 }
 
 .quantity-btn:hover:not(:disabled) {
-  background-color: #edf2f7;
+  background: #e2e8f0;
+  color: #2d3748;
 }
 
 .quantity-btn:disabled {
@@ -682,215 +761,320 @@ export default {
   cursor: not-allowed;
 }
 
-.decrement {
-  border-radius: 8px 0 0 8px;
-}
-
-.increment {
-  border-radius: 0 8px 8px 0;
+.quantity-btn svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .quantity {
-  min-width: 40px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  min-width: 3rem;
+  text-align: center;
+  font-weight: 600;
+  color: #2d3748;
+  padding: 0.5rem;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+}
+
+.item-subtotal {
+  text-align: right;
+}
+
+.subtotal-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #718096;
+  margin-bottom: 0.25rem;
+}
+
+.subtotal-amount {
+  font-size: 1.1rem;
   font-weight: 600;
   color: #2d3748;
 }
 
 /* Cart Summary */
-.summary-wrapper {
-  position: relative;
+.cart-summary-section {
+  position: sticky;
+  top: 2rem;
 }
 
 .summary-card {
-  background-color: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 20px;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
-.summary-card h3 {
+.summary-header {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.summary-header h3 {
+  font-size: 1.25rem;
   font-weight: 600;
-  color: #3B1E54;
-  margin-bottom: 20px;
-  text-align: center;
+  color: #2d3748;
+  margin: 0;
+}
+
+.summary-details {
+  padding: 1.5rem 2rem;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-row span:first-child {
+  color: #4a5568;
+}
+
+.summary-row span:last-child {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.shipping-note {
+  font-size: 0.9rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.summary-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 1.5rem 0;
 }
 
 .summary-total {
   display: flex;
   justify-content: space-between;
-  font-weight: 700;
+  align-items: center;
   font-size: 1.1rem;
-  margin-top: 15px;
-  margin-bottom: 24px;
-  padding-top: 16px;
-  border-top: 2px solid #e2e8f0;
+  font-weight: 600;
   color: #2d3748;
+  padding-top: 1rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.summary-actions {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
 .checkout-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   width: 100%;
-  background-color: #D4BEE4;
-  color: #3B1E54;
+  background: #6c63ff;
+  color: white;
   border: none;
-  padding: 14px;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 0.5rem;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 12px;
+  margin-bottom: 0.75rem;
 }
 
 .checkout-btn:hover {
-  background-color: #EEEEEE;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #5a52ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
 }
 
-.clear-cart-btn {
-  display: block;
+.checkout-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.clear-btn {
   width: 100%;
-  background-color: white;
+  background: #f8fafc;
   color: #718096;
   border: 1px solid #e2e8f0;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.clear-cart-btn:hover {
-  background-color: #f7fafc;
+.clear-btn:hover {
+  background: #e2e8f0;
   color: #4a5568;
 }
 
-/* Modal */
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
-  background-color: white;
-  border-radius: 12px;
-  padding: 28px;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
   max-width: 400px;
   width: 90%;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
-.modal-content h3 {
+.modal-header {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  font-size: 1.25rem;
   font-weight: 600;
   color: #2d3748;
-  margin-bottom: 12px;
+  margin: 0;
+}
+
+.modal-body {
+  padding: 1.5rem 2rem;
+}
+
+.modal-body p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .modal-actions {
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 28px;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
-.confirm-btn, .primary-button {
-  background-color: #D4BEE4;
-  color: #3B1E54;
+.confirm-btn, .login-btn {
+  flex: 1;
+  background: #6c63ff;
+  color: white;
   border: none;
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
+  text-align: center;
 }
 
-.confirm-btn:hover, .primary-button:hover {
-  background-color: #EEEEEE;
+.confirm-btn:hover, .login-btn:hover {
+  background: #5a52ff;
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
 }
 
-.cancel-btn, .secondary-button {
-  background-color: #EEEEEE;
+.cancel-btn {
+  flex: 1;
+  background: #f8fafc;
+  color: #4a5568;
   border: 1px solid #e2e8f0;
-  color: #3B1E54;
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.cancel-btn:hover, .secondary-button:hover {
-  background-color: #D4BEE4;
-  color: #4a5568;
+.cancel-btn:hover {
+  background: #e2e8f0;
+  color: #2d3748;
 }
 
-/* Responsive design */
-@media (max-width: 767px) {
-  .mobile-label {
-    display: block;
-    text-align: left;
-    font-size: 0.85rem;
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
   
-  .price, .subtotal {
-    text-align: left;
-  }
-  
-  .quantity-controls {
-    justify-content: flex-start;
-  }
-  
-  .product-col {
-    margin-bottom: 15px;
-  }
-}
-
-@media (max-width: 576px) {
   .cart-item {
-    padding: 12px;
+    grid-template-columns: 60px 1fr;
+    gap: 1rem;
+    padding: 1rem;
   }
   
-  .cart-item-image {
-    width: 70px;
-    height: 70px;
+  .item-actions {
+    grid-column: span 2;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
   }
   
-  .product-name {
-    font-size: 1rem;
+  .item-subtotal {
+    text-align: left;
+  }
+  
+  .subtotal-label {
+    display: inline;
+    margin-right: 0.5rem;
+  }
+  
+  .subtotal-amount {
+    display: inline;
+  }
+  
+  .header-content h1 {
+    font-size: 2rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+  
+  .cart-page {
+    padding: 1rem 0;
+  }
+  
+  .section-header {
+    padding: 1rem;
+  }
+  
+  .cart-item {
+    padding: 1rem;
   }
   
   .summary-card {
-    padding: 20px;
+    margin: 0 -0.5rem;
   }
 }
 </style>

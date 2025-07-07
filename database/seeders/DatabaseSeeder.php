@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Call your custom seeder(s) here
-        $this->call(AdminUserSeeder::class);
+        $this->call([
+            CategorySeeder::class,
+            AdminUserSeeder::class,
+        ]);
     }
 }

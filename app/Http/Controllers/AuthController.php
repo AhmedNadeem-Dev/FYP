@@ -51,17 +51,68 @@ class AuthController extends Controller
     }
 
     /**
+     * Get all artists
+     */
+    public function getArtists(Request $request)
+    {
+        try {
+            $limit = $request->query('limit', 10);
+            
+            $artists = User::where('role', 'artist')
+                          ->select('id', 'name', 'email', 'phone', 'role', 'created_at', 'rating_count', 'total_rating')
+                          ->limit($limit)
+                          ->get();
+            
+            // Calculate average rating for each artist
+            $artists = $artists->map(function ($artist) {
+                $artistArray = $artist->toArray();
+                if ($artist->rating_count > 0) {
+                    $artistArray['average_rating'] = round($artist->total_rating / $artist->rating_count, 1);
+                } else {
+                    $artistArray['average_rating'] = 0;
+                }
+                return $artistArray;
+            });
+            
+            return response()->json($artists, 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch artists', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get artist count for statistics
+     */
+    public function getArtistCount()
+    {
+        try {
+            $count = User::where('role', 'artist')->count();
+            return response()->json(['count' => $count], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch artist count', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get seller count for statistics
+     */
+    public function getSellerCount()
+    {
+        try {
+            $count = User::where('role', 'scrapSeller')->count();
+            return response()->json(['count' => $count], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch seller count', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Rate a user
      */
       public function rateUser(Request $request, $id)
     {
         try {
-            // Log the incoming request
-            Log::info('Rating request received', [
-                'user_id' => $id,
-                'request_data' => $request->all(),
-                'auth_user' => Auth::id()
-            ]);
+            // Process rating request
 
             // Validate the rating
             $validator = Validator::make($request->all(), [
@@ -70,11 +121,6 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('Rating validation failed', [
-                    'errors' => $validator->errors(),
-                    'request_data' => $request->all()
-                ]);
-                
                 return response()->json([
                     'message' => 'Invalid rating data.',
                     'errors' => $validator->errors()
@@ -84,48 +130,19 @@ class AuthController extends Controller
             // Check if user is authenticated
             $currentUser = Auth::user();
             if (!$currentUser) {
-                Log::warning('Unauthenticated rating attempt');
                 return response()->json(['message' => 'Authentication required.'], 401);
             }
 
-            Log::info('Current user authenticated', [
-                'current_user_id' => $currentUser->id,
-                'target_user_id' => $id
-            ]);
-
             // Check if user is trying to rate themselves
             if ($currentUser->id == $id) {
-                Log::warning('User attempting to rate themselves', [
-                    'user_id' => $currentUser->id
-                ]);
                 return response()->json(['message' => 'You cannot rate yourself.'], 403);
             }
 
             // Find the user to be rated
             $userToRate = User::findOrFail($id);
             
-            Log::info('User to rate found', [
-                'user_id' => $userToRate->id,
-                'current_rating_count' => $userToRate->rating_count,
-                'current_total_rating' => $userToRate->total_rating
-            ]);
-
-            // Store previous values for logging
-            $previousRatingCount = $userToRate->rating_count;
-            $previousTotalRating = $userToRate->total_rating;
-
             // Add the rating
             $userToRate->addRating($request->rating);
-
-            Log::info('Rating added successfully', [
-                'user_id' => $userToRate->id,
-                'new_rating' => $request->rating,
-                'previous_count' => $previousRatingCount,
-                'new_count' => $userToRate->rating_count,
-                'previous_total' => $previousTotalRating,
-                'new_total' => $userToRate->total_rating,
-                'new_average' => $userToRate->average_rating
-            ]);
 
             return response()->json([
                 'message' => 'Rating submitted successfully.',
@@ -141,22 +158,11 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::error('User not found for rating', [
-                'user_id' => $id,
-                'error' => $e->getMessage()
-            ]);
-            
             return response()->json([
                 'message' => 'User not found.'
             ], 404);
             
         } catch (\Exception $e) {
-            Log::error('Rating submission error', [
-                'user_id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             return response()->json([
                 'message' => 'Failed to submit rating.',
                 'error' => $e->getMessage()
@@ -191,10 +197,10 @@ class AuthController extends Controller
     {
         // Validate incoming request
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'required|digits_between:1,11',
-            'password' => 'required|string|min:6|confirmed',
+            'name' => 'required|string|max:255|regex:/^[a-zA-Z\s]+$/',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone' => 'required|digits_between:10,15',
+            'password' => 'required|string|min:8|confirmed|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/',
             'role' => 'required|in:artist,scrapSeller,general',
         ]);
 
@@ -217,11 +223,15 @@ class AuthController extends Controller
 
         // Return a success response with the token
         return response()->json([
+            'success' => true,
             'message' => 'User registered successfully.',
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => $user
-        ], 201);
+        ], 201)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     }
 
     /**
@@ -237,7 +247,10 @@ class AuthController extends Controller
 
         // Attempt login
         if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+            return response()->json(['message' => 'Invalid credentials.'], 401)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
 
         // If successful, create a personal access token with specific abilities
@@ -248,7 +261,10 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type'   => 'Bearer',
             'user'         => $user,
-        ], 200);
+        ], 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     }
 
     /**
@@ -257,17 +273,8 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
-            // Log incoming request details
-            \Log::info('Logout attempt:', [
-                'user' => $request->user(),
-                'headers' => $request->headers->all(),
-            ]);
-
             // Retrieve the current access token
             $token = $request->user()->currentAccessToken();
-
-            // Log token details
-            \Log::info('Token type:', ['type' => get_class($token)]);
 
             // Check for invalid token type (e.g., TransientToken)
             if (is_null($token) || get_class($token) === 'Laravel\Sanctum\TransientToken') {
@@ -276,16 +283,12 @@ class AuthController extends Controller
 
             // Revoke the token
             $token->delete();
-            \Log::info('Token revoked successfully.', ['tokenId' => $token->id]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Logged out successfully.',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Logout error: ' . $e->getMessage(), [
-                'userId' => $request->user()->id ?? null,
-            ]);
 
             return response()->json([
                 'success' => false,

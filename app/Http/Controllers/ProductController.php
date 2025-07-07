@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ProductImage;
 use Illuminate\Http\Request;
+use App\Http\Requests\ProductRequest;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 
 class ProductController extends Controller
 { 
-    public function store(Request $request)
+    public function store(ProductRequest $request)
     {
         // 1. Check if user is logged in
         if (!auth()->check()) {
@@ -19,14 +20,7 @@ class ProductController extends Controller
         }
 
         try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'required|string',
-                'price' => 'required|numeric',
-                'category_id' => 'required|exists:categories,category_id',
-                'additional_info' => 'nullable|string',
-                'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:20480', // 20 MB
-            ]);
+            $validated = $request->validated();
 
             // Add the user_id to the validated array
             $validated['user_id'] = auth()->id();
@@ -42,16 +36,33 @@ class ProductController extends Controller
                 }
                 
                 foreach ($request->file('images') as $image) {
-                    // Save directly to public/images folder with unique filename
-                    $filename = uniqid() . '_' . $image->getClientOriginalName();
+                    // Additional security checks
+                    if (!$image->isValid()) {
+                        throw new \Exception('Invalid image file uploaded');
+                    }
+                    
+                    // Check file size (additional check)
+                    if ($image->getSize() > 2048 * 1024) { // 2MB in bytes
+                        throw new \Exception('Image file too large');
+                    }
+                    
+                    // Sanitize original filename
+                    $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '', $image->getClientOriginalName());
+                    
+                    // Generate secure filename
+                    $filename = uniqid() . '_' . time() . '_' . $originalName;
+                    
+                    // Move file to secure location
                     $image->move(public_path('images'), $filename);
                     
-                    // Log the path for debugging
-                    Log::info('Image stored:', ['path' => $filename, 'full_path' => public_path('images/' . $filename)]);
+                    // Verify the file was actually moved
+                    if (!file_exists(public_path('images/' . $filename))) {
+                        throw new \Exception('Failed to save image file');
+                    }
 
                     ProductImage::create([
                         'product_id' => $product->product_id,
-                        'image_path' => $filename, // Store just the filename
+                        'image_path' => $filename,
                     ]);
                 }
             }
@@ -113,7 +124,7 @@ class ProductController extends Controller
         }
     }
 
-public function update(Request $request, $id)
+public function update(ProductRequest $request, $id)
 {
     // Check if user is logged in
     if (!auth()->check()) {
@@ -130,14 +141,8 @@ public function update(Request $request, $id)
             return response()->json(['message' => 'Product not found or unauthorized.'], 404);
         }
 
-        // Updated validation to include all fields
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'category_id' => 'required|integer|exists:categories,category_id', // Add this line
-            'additional_info' => 'nullable|string' // Add this line
-        ]);
+        // Get validated data from form request
+        $validated = $request->validated();
 
         // Update the product with all validated fields
         $product->update([
@@ -186,16 +191,7 @@ public function update(Request $request, $id)
                 'description' => $product->description,
                 'price' => $product->price,
                 'images' => $product->images->map(function($image) {
-                    $url = url('images/' . $image->image_path);
-                    
-                    // Log image path for debugging
-                    Log::info('Image path for product detail:', [
-                        'filename' => $image->image_path,
-                        'full_url' => $url,
-                        'file_exists' => file_exists(public_path('images/' . $image->image_path))
-                    ]);
-                    
-                    return $url;
+                    return url('images/' . $image->image_path);
                 }),
                 'user' => [
                     'id' => $product->user->id,
@@ -218,15 +214,19 @@ public function update(Request $request, $id)
             return response()->json($response, 200);
         } catch (\Exception $e) {
             Log::error('Error fetching product details:', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Error fetching product details', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Error fetching product details'], 500);
         }
     }
 
     public function getAllProducts(Request $request)
     {
         try {
-            // Fetch all products, eager load category and images
+            Log::info('getAllProducts called');
+            
+            // Fetch all products with eager loading to prevent N+1 queries
             $products = Product::with(['category', 'images'])->get();
+            
+            Log::info('Products fetched', ['count' => $products->count()]);
     
             // Map the products into the desired response format
             $response = $products->map(function ($product) {
@@ -237,24 +237,24 @@ public function update(Request $request, $id)
                     'price' => $product->price,
                     'category' => $product->category ? $product->category->name : null,
                     'images' => $product->images->map(function ($image) {
-                        $url = url('images/' . $image->image_path);
-                        
-                        // Log image path for debugging
-                        Log::info('getAllProducts image path:', [
-                            'filename' => $image->image_path,
-                            'full_url' => $url,
-                            'file_exists' => file_exists(public_path('images/' . $image->image_path))
-                        ]);
-                        
-                        return $url;
+                        return url('images/' . $image->image_path);
                     }),
                 ];
             });
+            
+            Log::info('Response prepared', ['response_count' => $response->count()]);
     
-            return response()->json($response, 200);
+            return response()->json($response, 200)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+                
         } catch (\Exception $e) {
-            Log::error('Error in getAllProducts:', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Error fetching products', 'error' => $e->getMessage()], 500);
+            Log::error('Error in getAllProducts:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['message' => 'Error fetching products', 'error' => $e->getMessage()], 500)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
         }
     }
 // Add this new method to your ProductController
@@ -322,6 +322,22 @@ public function getUserProducts($userId)
         } catch (\Exception $e) {
             Log::error('Error deleting product:', ['product_id' => $id, 'error' => $e->getMessage()]);
             return response()->json(['message' => 'Error deleting product', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get products sold count for statistics
+     * Note: This currently returns total products count since we don't have order tracking yet
+     */
+    public function getProductsSoldCount()
+    {
+        try {
+            // For now, return total products count as a proxy for "products sold"
+            // In a real implementation, this would count from order/purchase records
+            $count = Product::count();
+            return response()->json(['count' => $count], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch products sold count', 'error' => $e->getMessage()], 500);
         }
     }
 }

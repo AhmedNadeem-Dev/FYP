@@ -10,6 +10,10 @@ import axios from 'axios';
 import Toast, { POSITION } from 'vue-toastification'; // Correctly import Vue Toastification
 import 'vue-toastification/dist/index.css'; // Import Vue Toastification CSS
 
+// Global components
+import ErrorBoundary from './components/ErrorBoundary.vue';
+import LoadingSpinner from './components/LoadingSpinner.vue';
+
 /**
  * Create a fresh Vue application instance.
  */
@@ -26,7 +30,7 @@ axios.defaults.baseURL = 'http://127.0.0.1:8000'; // Replace with your actual AP
 axios.interceptors.request.use(
   config => {
     const token = localStorage.getItem('access_token'); // Corrected key
-    console.log('Axios Interceptor - access_token:', token); // Optional: Log the token for debugging
+    // Add authorization header if token exists
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -47,6 +51,33 @@ app.use(Toast, {
   pauseOnFocusLoss: true,
   pauseOnHover: true,
 });
+
+// Register global components
+app.component('ErrorBoundary', ErrorBoundary);
+app.component('LoadingSpinner', LoadingSpinner);
+
+// Global error handler
+app.config.errorHandler = (error, instance, info) => {
+    console.error('Global error:', error);
+    console.error('Component info:', info);
+    
+    // Send error to logging service in production
+    if (process.env.NODE_ENV === 'production') {
+        // You can integrate with services like Sentry here
+        // Sentry.captureException(error);
+    }
+};
+
+// Global warning handler
+app.config.warnHandler = (msg, instance, trace) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.warn('Vue warning:', msg);
+        console.warn('Component trace:', trace);
+    }
+};
+
+// Performance monitoring
+app.config.performance = process.env.NODE_ENV === 'development';
 
 /**
  * Register Vue Router
